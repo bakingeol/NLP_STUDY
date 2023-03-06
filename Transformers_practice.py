@@ -1,4 +1,5 @@
 
+##################################인코더#####################################
 #%%
 from math import sqrt
 from transformers import AutoTokenizer
@@ -20,6 +21,8 @@ config = AutoConfig.from_pretrained(model_ckpt)
 token_emb = nn.Embedding(config.vocab_size, config.hidden_size)
 input_embeds = token_emb(inputs.input_ids)
 #%%
+config
+#%%
 input_embeds, input_embeds.size()
 #%%
 query = key = value = input_embeds
@@ -31,13 +34,15 @@ dim_k
 weights = F.softmax(scores, dim = -1)
 weights.sum(dim = -1)
 
-attn_outputs = torch.bmm(weights, value)
+attn_outputs = torch.bmm(weights, value) # 1,5,5 // 1,5,768 -> 1,5768
 #%%
 def scaled_dot_product_attention(query, key, value):
-    dim_k = query.size(-1)
+    dim_k = query.size(-1)    
     scores = torch.bmm(query, key.transpose(1,2))/sqrt(dim_k)
     weights = F.softmax(scores, dim = -1)
     return torch.bmm(weights, value)
+#%%
+scaled_dot_product_attention(query, key, value)
 #%%
 class AttentionHead(nn.Module):
     def __init__(self, embed_dim, head_dim):
@@ -181,4 +186,21 @@ class TrnasofrmerForSequenceClassification(nn.Module):
 config.num_labels = 3
 encoder_classifier = TrnasofrmerForSequenceClassification(config)
 encoder_classifier(inputs.input_ids).size()
+##################################인코더#####################################
+# %%
+##################################디코더#####################################
+# %%
+seq_len = inputs.input_ids.size(-1)
+mask = torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0)
+mask[0]
+# %%
+scores.masked_fill(mask==0, -float('inf'))
+# %%
+def scaled_dot_product_attention(query, key, value, mask=None):
+    dim_k = query.size(-1)
+    scores = torch.bmm(query, key.transpose(1,2))/sqrt(dim_k)
+    if mask is not None:
+        scores = scores.masked_fill(mask==0, float('-inf'))
+    weights = F.softmax(scores, dim=-1)
+    return weights.bmm(value)
 # %%
